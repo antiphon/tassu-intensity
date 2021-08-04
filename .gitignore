@@ -42,9 +42,9 @@ vignettes/*.pdf
 # Luke data
 /data_not_public/*
 !/data_not_public/Readme.md
+!*.R
 
 # big corine
-#/data/corine/clc2018_fi20m.tif
-/data/corine/too_big_for_git/*
+# use external path
 
 
