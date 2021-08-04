@@ -1,0 +1,51 @@
+Value;Level4;Level4Suo;Level3;Level3Suo;Level3Eng;Level2;Level2Suo;Level2Eng;Level1;Level1Suo;Level1Eng
+1;1111;Kerrostaloalueet;111;Tiiviisti rakennetut asuinalueet ;Continuous urban fabric ;11;Asuinalueet;Urban fabric;1;Rakennetut alueet;Artificial surfaces
+2;1121;Pientaloalueet;112;Väljästi rakennetut asuinalueet;Discontinuous urban fabric ;11;Asuinalueet;Urban fabric;1;Rakennetut alueet;Artificial surfaces
+3;1211;Palveluiden alueet;121;Palveluiden alueet;Commercial units ;12;Teollisuuden, palveluiden ja liikenteen alueet;Urban fabric;1;Rakennetut alueet;Artificial surfaces
+4;1212;Teollisuuden alueet;121;Teollisuuden alueet;Industrial units ;12;Teollisuuden, palveluiden ja liikenteen alueet;Urban fabric;1;Rakennetut alueet;Artificial surfaces
+5;1221;Liikennealueet;122;Liikennealueet;Road and rail networks and associated land ;12;Teollisuuden, palveluiden ja liikenteen alueet;Industrial, commercial and transport units;1;Rakennetut alueet;Artificial surfaces
+6;1231;Satama-alueet;123;Satama-alueet;Port areas;12;Teollisuuden, palveluiden ja liikenteen alueet;Industrial, commercial and transport units;1;Rakennetut alueet;Artificial surfaces
+7;1241;Lentokenttäalueet;124;Lentokenttäalueet;Airports;12;Teollisuuden, palveluiden ja liikenteen alueet;Industrial, commercial and transport units;1;Rakennetut alueet;Artificial surfaces
+8;1311;Maa-ainesten ottoalueet;131;Maa-aineisten ottoalueet;Mineral extraction sites;13;Maa-aineisten ottoalueet, kaatopaikat ja rakennustyöalueet;Mine, dump and construction sites;1;Rakennetut alueet;Artificial surfaces
+9;1312;Kaivokset;131;Maa-aineisten ottoalueet;Mineral extraction sites;13;Maa-aineisten ottoalueet, kaatopaikat ja rakennustyöalueet;Mine, dump and construction sites;1;Rakennetut alueet;Artificial surfaces
+10;1321;Kaatopaikat;132;Kaatopaikat;Dump sites ;13;Maa-aineisten ottoalueet, kaatopaikat ja rakennustyöalueet;Mine, dump and construction sites;1;Rakennetut alueet;Artificial surfaces
+11;1331;Rakennustyöalueet;133;Rakennustyöalueet;Construction sites;13;Maa-aineisten ottoalueet, kaatopaikat ja rakennustyöalueet;Mine, dump and construction sites;1;Rakennetut alueet;Artificial surfaces
+;;;141;Taajamien viheralueet ja puistot;Green urban areas;14;Virkistys- ja vapaa-ajan toiminta-alueet;Artificial, non-agricultural vegetated areas;1;Rakennetut alueet;Artificial surfaces
+12;1421;Vapaa-ajan asunnot;142;Urheilu- ja vapaa-ajan toiminta-alueet;Sport and leisure facilities;14;Virkistys- ja vapaa-ajan toiminta-alueet;Artificial, non-agricultural vegetated areas;1;Rakennetut alueet;Artificial surfaces
+13;1422;Muut urheilu- ja vapaa-ajan toiminta –alueet;142;Urheilu- ja vapaa-ajan toiminta-alueet;Sport and leisure facilities;14;Virkistys- ja vapaa-ajan toiminta-alueet;Artificial, non-agricultural vegetated areas;1;Rakennetut alueet;Artificial surfaces
+14;1423;Golfkentät;142;Urheilu- ja vapaa-ajan toiminta-alueet;Sport and leisure facilities;14;Virkistys- ja vapaa-ajan toiminta-alueet;Artificial, non-agricultural vegetated areas;1;Rakennetut alueet;Artificial surfaces
+15;1424;Raviradat;142;Urheilu- ja vapaa-ajan toiminta-alueet;Sport and leisure facilities;14;Virkistys- ja vapaa-ajan toiminta-alueet;Artificial, non-agricultural vegetated areas;1;Rakennetut alueet;Artificial surfaces
+16;2111;Pellot;211;Pellot;Non-irrigated arable land;21;Viljelysmaat;Arable land;2;Maatalousalueet;Agricultural areas
+17;2221;Hedelmäpuu- ja marjapensasviljelmät;222;Puu- ja pensasviljelmät;Fruit trees and berry plantations;22;Monivuotiset viljelmät;Permanent crops;2;Maatalousalueet;Agricultural areas
+18;2311;Laidunmaat  ;231;Laidunmaat  ;Pastures;23;Laidunmaat  ;Pastures;2;Maatalousalueet;Agricultural areas
+19;2312;Luonnon laidunmaat;231;Laidunmaat  ;Pastures;23;Laidunmaat  ;Pastures;2;Maatalousalueet;Agricultural areas
+;;;242;Peltojen ja niittyjen muodostama mosaiikki;Complex cultivation;24;Heterogeeniset maatalousvaltaiset alueet;Heterogeneous agricultural areas;2;Maatalousalueet;Agricultural areas
+20;2431;Käytöstä poistunut maatalousmaa ;243;Pienipiirteinen maatalousmosaiikki;Land principally occupied by agriculture, with significant areas of natural vegetation;24;Heterogeeniset maatalousvaltaiset alueet;Heterogeneous agricultural areas;2;Maatalousalueet;Agricultural areas
+21;2441;Puustoiset pelto- ja laidunmaat;244;Puustoiset pelto- ja laidunmaat;Agro-forestry areas;24;Heterogeeniset maatalousvaltaiset alueet;Heterogeneous agricultural areas;2;Maatalousalueet;Agricultural areas
+22;3111;Lehtimetsät kivennäismaalla;311;Lehtimetsät ;Broad-leaved forest ;31;Sulkeutuneet metsät;Forests;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+23;3112;Lehtimetsät turvemaalla;311;Lehtimetsät ;Broad-leaved forest ;31;Sulkeutuneet metsät;Forests;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+24;3121;Havumetsät kivennäismaalla;312;Havumetsät ;Coniferous forest ;31;Sulkeutuneet metsät;Forests;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+25;3122;Havumetsät turvemaalla;312;Havumetsät ;Coniferous forest ;31;Sulkeutuneet metsät;Forests;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+26;3123;Havumetsät kalliomaalla;312;Havumetsät ;Coniferous forest ;31;Sulkeutuneet metsät;Forests;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+27;3131;Sekametsät kivennäismaalla;313;Sekametsät ;Mixed forest;31;Sulkeutuneet metsät;Forests;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+28;3132;Sekametsät turvemaalla;313;Sekametsät ;Mixed forest;31;Sulkeutuneet metsät;Forests;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+29;3133;Sekametsät kalliomaalla;313;Sekametsät ;Mixed forest;31;Sulkeutuneet metsät;Forests;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+30;3211;Luonnonniityt;321;Luonnonniityt;Natural grassland;32;Harvapuustoiset metsät, pensastot sekä avoimet kankaat;Shrub and/or herbaceous vegetation associations;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+31;3221;Varvikot ja nummet;322;Varvikot ja nummet;Moors and heathland ;32;Harvapuustoiset metsät, pensastot sekä avoimet kankaat;Shrub and/or herbaceous vegetation associations;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+32;3241;Harvapuustoiset alueet , cc <10%  ;324;Harvapuustoiset alueet ;Transitional woodland/shrub ;32;Harvapuustoiset metsät, pensastot sekä avoimet kankaat;Shrub and/or herbaceous vegetation associations;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+33;3242;Harvapuustoiset alueet, cc 10-30%, kivennäismaalla   ;324;Harvapuustoiset alueet ;Transitional woodland/shrub ;32;Harvapuustoiset metsät, pensastot sekä avoimet kankaat;Shrub and/or herbaceous vegetation associations;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+34;3243;Harvapuustoiset alueet, cc 10-30%, turvemaalla   ;324;Harvapuustoiset alueet ;Transitional woodland/shrub ;32;Harvapuustoiset metsät, pensastot sekä avoimet kankaat;Shrub and/or herbaceous vegetation associations;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+35;3244;Harvapuustoiset alueet, cc 10-30%, kalliomaalla;324;Harvapuustoiset alueet ;Transitional woodland/shrub ;32;Harvapuustoiset metsät, pensastot sekä avoimet kankaat;Shrub and/or herbaceous vegetation associations;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+36;3246;Harvapuustoiset alueet, sähkölinjan alla;324;Harvapuustoiset alueet ;Transitional woodland/shrub ;32;Harvapuustoiset metsät, pensastot sekä avoimet kankaat;Shrub and/or herbaceous vegetation associations;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+37;3311;Rantahietikot ja dyynialueet;331;Rantahietikot ja dyynialueet;Beaches, dunes, and sand plains ;33;Avoimet kankaat ja kalliomaat;Open spaces with little or no vegetation;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+38;3321;Kalliomaat  ;332;Kalliomaat  ;Bare rock;33;Avoimet kankaat ja kalliomaat;Open spaces with little or no vegetation;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+39;3331;Niukkakasvustoiset kangasmaat ;333;Niukkakasvustoiset kangasmaat ;Sparsely vegetated areas;33;Avoimet kankaat ja kalliomaat;Open spaces with little or no vegetation;3;Metsät sekä avoimet kankaat ja kalliomaat;Forests and semi-natural areas
+40;4111;Sisämaan kosteikot maalla;411;Sisämaan kosteikot ;Inland marshes;41;Sisämaan kosteikot ja avosuot;Inland wetlands;4;Kosteikot ja avoimet suot;Wetlands
+41;4112;Sisämaan kosteikot vedessä;411;Sisämaan kosteikot ;Inland marshes;41;Sisämaan kosteikot ja avosuot;Inland wetlands;4;Kosteikot ja avoimet suot;Wetlands
+42;4121;Avosuot;412;Avosuot;Peatbogs;41;Sisämaan kosteikot ja avosuot;Inland wetlands;4;Kosteikot ja avoimet suot;Wetlands
+43;4122;Turvetuotantoalueet;412;Turvetuotantoalueet;Peatbogs;41;Sisämaan kosteikot ja avosuot;Inland wetlands;4;Kosteikot ja avoimet suot;Wetlands
+44;4211;Merenrantakosteikot maalla;421;Merenrantakosteikot maalla;Salt marshes;42;Rannikon kosteikot;Coastal wetlands;4;Kosteikot ja avoimet suot;Wetlands
+45;4212;Merenrantakosteikot vedessä;421;Merenrantakosteikot vedessä;Salt marshes;42;Rannikon kosteikot;Coastal wetlands;4;Kosteikot ja avoimet suot;Wetlands
+46;5111;Joet;511;Joet;Water bodies;51;Sisävedet;Inland waters;5;Vesialueet;Water bodies
+47;5121;Järvet;512;Järvet;Water bodies;51;Sisävedet;Inland waters;5;Vesialueet;Water bodies
+48;5231;Meri;523;Meri;Sea and ocean;52;Merivedet;Marine waters;5;Vesialueet;Water bodies

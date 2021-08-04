@@ -1,0 +1,25 @@
+[general]
+creator=R package 'raster'
+created=2021-08-04 08:49:47
+[georeference]
+nrows=1240
+ncols=720
+xmin=20000
+ymin=6596760
+xmax=740000
+ymax=7836760
+projection=+proj=utm +zone=35 +ellps=GRS80 +units=m +no_defs
+[data]
+datatype=FLT4S
+byteorder=little
+nbands=8
+bandorder=BIL
+minvalue=0:0:0:0:0:0:0:0
+maxvalue=0.836399972438812:0.423599988222122:1:1:1:1:1:1
+nodatavalue=-3.4e+38
+[legend]
+legendtype=
+values=
+color=
+[description]
+layername=Asuinalueet:Tiet:Muu.rakennettu:Maatalous:Sulk..metsät:Harvat.metsät.yms.:Suot.ja.kosteikot:Vesialueet

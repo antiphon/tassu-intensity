@@ -34,6 +34,17 @@ vignettes/*.pdf
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
+*_files/
 
 # R Environment Variables
 .Renviron
+
+# Luke data
+/data_not_public/*
+!/data_not_public/Readme.md
+
+# big corine
+#/data/corine/clc2018_fi20m.tif
+/data/corine/too_big_for_git/*
+
+

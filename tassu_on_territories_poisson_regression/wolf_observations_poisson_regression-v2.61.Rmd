@@ -1,0 +1,319 @@
+---
+title: "Wolf observations, rough intensity vol. 2.61 (github)"
+author: "Tuomas Rajala"
+date : "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    code_folding: hide
+    fig_caption: true
+    number_sections: true
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(sf)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(raster)
+library(mgcv)
+library(parallel)
+theme_set(theme_bw())
+knitr::opts_chunk$set(fig.width=9, fig.height=3, echo=TRUE, message=FALSE, warning=FALSE)
+```
+
+* v2.61: github version; wolf-year
+
+* v2.6: Include data processing and aggregation steps, excl. raw-tassu compilation from excels and gps-territory geometry calculations.
+
+* v2.5: Drop data before 2020 to allow prediction quality assessment
+
+* v2.4: Drop the `ryhmassa == TRUE` condition, data more model roughly doubled.
+
+* v2.3: Include Jan and Feb with March in the active territories
+
+* v2.2: Offset so that $E y_i = \lambda_i / A_{(i)}$, i.e. as intended it is harder to observe packs with larger territories.
+
+* v2.1: Only those obs for which `(ryhmassa == TRUE | havainto_id_count > 1)  &  (havainto_id_subidx == 1)`, meaning one row of data is a unique observation of a pack, no matter the size as long as there are more than 1 wolves per registered observation. 
+
+* v2.0: one row of data is a registered observation in the tassu. Could be repeated for many wolves, could be a of a single wolf. Note that big packs have many datapoints per observation coordinate. Also, we add the area of the territory each counting cell hits as offset.
+
+# Intro
+
+Model the intensity of wolf-observations in  the Tassu data, conditioned on "wolf present" subset of Tassu that hits active wolf territories. Territories derived as the convex hulls of GPS-collar tracking data and the expert determined territories on Mays of 2017-2019. 
+
+
+# Data
+
+```{r}
+####################################################
+# Region of interest:
+#
+crs1 <- 3067 # use this for all
+crs1_c <- paste0("EPSG:", crs1)
+finland <- readRDS("../data/finland.rds")
+finland <- st_transform(finland, crs1)
+# Drop North from geometries. Hard cut, no other preference given.
+box1 <- st_bbox(c(xmin=0, xmax=100000000, ymin=0, ymax = max(72e5 + 30000)), crs=st_crs(finland))
+finland1 <- st_crop(finland, box1)
+
+
+# 
+agg_out_file <- "processed/celdat_v2.6.rds"
+
+celdat1 <- readRDS(agg_out_file)
+```
+
+Data frame prepared in `1-aggregate-model-data-frame-v1.R`.
+
+
+
+## Some plots
+
+Tassu observations 
+
+```{r}
+addmargins( table(dat2$laji, dat2$vuosi) )
+```
+
+Tassu on map, spatial
+
+```{r, fig.height=7, fig.width=9}
+p <- dat2 %>% 
+  ggplot() + 
+  geom_sf(data = fin1, fill=NA) + 
+  geom_sf( data = gps, aes(fill = type), alpha=.3, col = NA)+
+  geom_point(aes(x,y), alpha=0.2, size = 0.2) + 
+  facet_grid(.~lajis)+
+  ggtitle("Tassu| GPS+expert territories ")  
+
+p
+```
+
+
+
+```{r}
+dat2 %>% ggplot() + geom_histogram(aes(timestamp_utc), bins = 300)
+```
+
+
+Number of cells: 
+
+```{r}
+celdat1 %>% ggplot() + geom_bar(aes(kkf)) + facet_wrap(~vuosi, scale="free_y") + 
+  ggtitle("Number of active cells")
+```
+
+Note changing scale.
+
+Number of wolf reports in those cells:
+
+```{r}
+celdat1 %>% group_by(vuosi, kkf) %>% summarise(nsusi =sum(nsusi))  %>% 
+  ggplot() + geom_col(aes(kkf, nsusi)) + facet_wrap(~vuosi, scale="free_y") + ggtitle("Number of wolf reports")
+```
+
+# Modeling details
+
+Model is Poisson counting, in cells of 1 km x 1km x 1 month.
+
+The model is for the count of wolf observations in a cell $i$ of size $V_i$
+
+$$y_i |\lambda_i \sim Poisson(\lambda_i / A_{(i)})$$
+$$\log \lambda_i = \tilde{year}_i + \tilde{month_i} + s(x_i, y_i) + corine\{2,...,8\}_i + forestroad_i$$
+where $\sim$ means factors and
+
+* $A_{(i)}$ is the area of the active territory observation cell $i$ hits  (offset, idea: Larger area -> harder to spot the pack; note we use the sum of all areas that might overlap there, so not strictly the union)
+* $s(x,y)$ is a spatially smooth term (`gam::ti`, smoothness via GCV)
+* $corinej_i$ is $j$th corine-covariate at cell $i$, taken from the 1km x 1km aggregated corine with extra 3km smoother applied (Gaussian blur), and then normalised so each corine cell holds a probability vector. Due to this sum-to-1 linear dependency, the first class is dropped.
+* $forestroad_i$ is an amount of forest road 
+
+Note: Data before 2020 used for fitting.
+
+
+
+```{r fit-poisson-bam, cache=TRUE}
+# final preparations and filterings.
+model_dat <- celdat1 %>% 
+  filter(vuosi < 2020)
+###
+# The define model
+
+
+cn <- colnames(model_dat)
+cona <- cn[grepl("^c18", cn)][-1] ## drop first due since simplex, same predictive power as log-ratios
+#cona <- cn[grepl("^lr.c18", cn)] ## log-ratios?
+cona <- c(cona, "droad.cl12")
+corv <- as.formula(paste( ".~ . + ", paste(cona, collapse = " + ")) )
+
+#p0 <- nsusi ~ -1  +  vuosif + kkf  + special_may + ti(x, y) 
+p1 <- nsusi ~ -1  +  vuosif + kkf  + special_may + ti(x, y) + offset(-log(area_km2))
+#p1s <- nsusi ~  vuosif + kkf  + special_may + offset(-log(area_km2))
+
+#pml0 <- update.formula(p0,  corv)
+pml1 <- update.formula(p1,  corv)
+#pml1s <- update.formula(p1s,  corv)
+# fit
+cl <- beginCluster(detectCores()/2)
+
+#t0 <- system.time( pit0 <- bam( pml0, data = model_dat, family = "poisson", cluster=cl) )
+t1 <- system.time( pit1 <- bam( pml1, data = model_dat, family = "poisson", cluster=cl) )
+#t1s <- system.time( pit1s <- bam( pml1s, data = model_dat, family = "poisson", cluster=cl) )
+
+#print(anova(pit0, pit1))
+```
+
+Estimated model:
+
+```{r}
+sum1 <-  summary(pit1)
+sum1
+```
+
+Time unit is 1 "month" = 1/12th of a year. 
+
+The baseline is "month = 1", for which the estimate is $log(\lambda)=0$. All other info adds to that. 
+
+# The components of lambda in space and time
+
+Compute the average year effect:
+
+```{r}
+coefs <- sum1$p.table
+cnames <- rownames(coefs)
+vix <- grepl("vuosi", cnames)
+S <-  sum1$cov.scaled
+vixS <- grepl("vuosi", rownames(S))
+vS <-  S[vixS, vixS]
+AM <- t(rep(1, sum(vix)))/sum(vix)
+mean_year_effect <- c(estimate =  AM%*%coefs[vix,1], sd = sqrt( AM%*%vS%*%t(AM) ) )  
+print(mean_year_effect)
+
+out <- list(mean_year_effect = mean_year_effect)
+```
+
+Then monthly effects follow. Note month=1 was the baseline = 0. 
+
+```{r}
+kix <- grepl("kkf", cnames)
+out$month_effects <- coefs[kix,1:2] %>%  as_tibble() %>% setNames(c("estimate", "sd")) %>%
+  mutate(kk = sprintf("%02i", 2:12))
+print(out$month_effects)
+
+out$month_effects %>%  
+  ggplot(aes(kk, estimate))+ 
+  geom_pointrange(aes(ymin = estimate - 2*sd, 
+                      ymax = estimate+2*sd))
+
+```
+
+Spatial: We have two separate spatial terms since Corine-info is also spatial. Compute in south finland.
+
+The predictions include offset = -log[ median($A_{(i)}$) ] i.e. resulting values are computed conditionally that each pixel is included in an average sized territory. 
+
+```{r}
+# over the target area, make a dummy dataframe
+them <- !is.na(c20s$Tiet[])
+c18df <- data.frame(c18=as.data.frame(c20s), 
+                    as.data.frame(droad1),
+                    vuosif = "2011", kkf = "1", special_may = FALSE, # need for predict-method
+                    area_km2 = median(model_dat$area_km2),
+                    areasum = median(model_dat$areasum)
+                    ) %>% 
+  bind_cols( coordinates(c20s) %>% data.frame() )
+c18df <- c18df[them,]
+
+cat(sprintf("Median territory size used in prediction: %f km^2\n", c18df$areasum[1]))
+
+fitbest <- pit1
+conabest <- cona
+
+# checks
+# pred0 <- predict.bam(fitbest, c18df, 
+#                       type = "link", 
+#                       se.fit = TRUE, 
+#                       cluster = cl) 
+# pred1  <- predict.bam(fitbest, c18df, 
+#                       type = "terms", 
+#                       se.fit = TRUE, 
+#                       cluster = cl)
+# # check
+# all.equal(c(pred0$fit), rowSums(pred1$fit), check.attributes=F)
+#
+
+pred_corine <- predict.bam(fitbest, c18df, terms = cona, 
+                      type = "terms", 
+                      se.fit = TRUE, 
+                      cluster = cl) 
+
+pred_s <- predict.bam(fitbest, c18df, terms = "ti(x,y)", 
+                      type = "terms", 
+                      se.fit = TRUE, 
+                      cluster = cl) 
+
+lammap_smooth <- data.frame(
+  log_lam = c(pred_s$fit),
+  log_lam.se = c(pred_s$se.fit), term = "ti(x,y)") %>%
+  bind_cols(c18df %>% dplyr::select(x, y) ) 
+
+lammap_corine <- data.frame(
+  log_lam = rowSums(pred_corine$fit),
+  log_lam.se = sqrt( rowSums(pred_corine$se.fit^2) ), 
+  term = "corine[all 7]") %>%
+  bind_cols(c18df %>% dplyr::select(x, y) ) 
+
+lammaps <- rbind(lammap_smooth, lammap_corine)
+
+# and together
+lammap <- data.frame(
+  log_lam = rowSums(pred_corine$fit) + c(pred_s$fit),
+  log_lam.se = sqrt( rowSums(pred_corine$se.fit^2) + c(pred_s$se.fit)^2 ), 
+  term = "ti(x,y) + corine[all 7]") %>%
+  bind_cols(c18df %>% dplyr::select(x, y) ) 
+
+
+```
+
+check plot
+
+```{r}
+mapit <- function(d) d %>%
+  pivot_longer(log_lam:log_lam.se) %>%
+  ggplot(aes(x, y)) + 
+  geom_raster(aes(fill = value)) +
+  coord_fixed() + 
+  scale_fill_distiller(palette = "Spectral") + 
+  facet_wrap(~term+name)
+
+lammaps %>% filter(term == "ti(x,y)") %>% mapit()
+```
+
+```{r}
+lammaps %>% filter(term != "ti(x,y)") %>% mapit()
+```
+
+
+```{r}
+lammap %>% mapit()
+```
+
+# Store
+save in a  list-of-objects
+
+```{r}
+out$spatial <- lammaps
+out$model_summary <- sum1
+saveRDS(out, "poisson_regression_log_lambda_terms-v2.6.rds")
+
+# store now also the model object
+saveRDS(pit1, "poisson_regression_bamfit-v2.6.rds")
+
+```
+
+
+```{r}
+endCluster()
+```
+
