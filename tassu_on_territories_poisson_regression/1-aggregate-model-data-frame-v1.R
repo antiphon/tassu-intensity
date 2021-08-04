@@ -12,7 +12,7 @@ library(sf)
 library(raster)
 
 # The file name for the output data-frame ready for glm etc.
-agg_out_file <- "processed/celdat_v2.6.rds"
+agg_out_file <- "processed/celdat-v2.6.rds"
 
 
 ####################################################
@@ -99,6 +99,8 @@ terr <- terr0 %>% filter( start.tdate >= min(tassu1$timestamp) &
          area_km2 = (area_m2 /1000^2)  )
 #
 # Territories ready.
+# store for plots etc.
+saveRDS(terr, "processed/territories-v1.rds")
 
 ######################################################################
 #
@@ -127,6 +129,9 @@ cat(sprintf("%3.2f%% tassu hits some territory.\n", nhit*100))
 # data that hits, i.e. the "wolf was present" conditioned data:
 tassu_dat2 <- tassu_dat1 %>% 
   filter( hit_cid )
+
+# store for plots etc.
+saveRDS(tassu_dat2, "processed/tassu_dat2-v1.rds")
 
 
 ########################################################################
@@ -190,6 +195,11 @@ tassu_dat3 <- cbind(tassu_dat2,
                     as.data.frame(droad1 [dat2cell] ) )
 
 message("spatial covariates added.")
+
+# store for plots etc.
+saveRDS(corine8s, "processed/corine8s-v1.rds")
+
+
 # 
 ###########################################################
 # Now we aggregate to cells.
@@ -287,7 +297,9 @@ celdat1 <- celdat1 %>% mutate(x      = cxy[raster_idx,1],
                               area_m2 = area_km2 * 1000^2,
                               wolf_start_year = vuosi - 1 * (kk < 4),
                               wolf_month = (kk - 4) %% 12 + 1,
-                              wolf_year = sprintf("%s-%s", wolf_start_year, wolf_start_year+1)
+                              wolf_year = sprintf("%s-%s", wolf_start_year, wolf_start_year+1),
+                              wolf_monthf = factor(wolf_month, levels = 1:12),
+                              wolf_yearf = factor(wolf_year)
                               )
 # store
 saveRDS(celdat1, agg_out_file)

@@ -1,5 +1,5 @@
 ---
-title: "Wolf observations, rough intensity vol. 2.61 (github)"
+title: "Wolf observations, rough intensity vol. 2.8 (overdispersion, m2 area, wolf year)"
 author: "Tuomas Rajala"
 date : "`r Sys.Date()`"
 output:
@@ -23,6 +23,10 @@ library(parallel)
 theme_set(theme_bw())
 knitr::opts_chunk$set(fig.width=9, fig.height=3, echo=TRUE, message=FALSE, warning=FALSE)
 ```
+
+* v2.8: look at overdispersion; time in wolf years; homogenise spatial units; check if "main" effect `ti` terms make difference
+
+* v2.7: skipped to avoid numbering issues from before VC
 
 * v2.61: github version; should be the same model result
 
@@ -160,7 +164,9 @@ cona <- c(cona, "droad.cl12")
 corv <- as.formula(paste( ".~ . + ", paste(cona, collapse = " + ")) )
 
 #p0 <- nsusi ~ -1  +  vuosif + kkf  + special_may + ti(x, y) 
-p1 <- nsusi ~ -1  +  vuosif + kkf  + special_may + ti(x, y) + offset(-log(area_km2))
+p1 <- nsusi ~ -1  +  wolf_yearf + wolf_monthf  + special_may + 
+  te(x,y) + #ti(x) + ti(y) + ti(x, y) + 
+  offset(-log(area_m2))
 #p1s <- nsusi ~  vuosif + kkf  + special_may + offset(-log(area_km2))
 
 #pml0 <- update.formula(p0,  corv)
@@ -173,13 +179,24 @@ cl <- beginCluster(detectCores()/2)
 t1 <- system.time( pit1 <- bam( pml1, data = model_dat, family = "poisson", cluster=cl) )
 #t1s <- system.time( pit1s <- bam( pml1s, data = model_dat, family = "poisson", cluster=cl) )
 
+
+
+
 #print(anova(pit0, pit1))
 ```
+
+
+
+```{r}
+phihat <- sum(residuals( pit1, type = "pearson" )^2) / df.residual(pit1)
+```
+
+The overdispersion estimate is $\hat\phi \approx `r round(phihat, 2)`$.
 
 Estimated model:
 
 ```{r}
-sum1 <-  summary(pit1)
+sum1 <-  summary(pit1, dispersion = phihat)
 sum1
 ```
 
@@ -189,32 +206,46 @@ The baseline is "month = 1", for which the estimate is $log(\lambda)=0$. All oth
 
 # The components of lambda in space and time
 
-Compute the average year effect:
+Yearly effects:
+
 
 ```{r}
 coefs <- sum1$p.table
 cnames <- rownames(coefs)
-vix <- grepl("vuosi", cnames)
+vix <- grepl("year", cnames)
 S <-  sum1$cov.scaled
-vixS <- grepl("vuosi", rownames(S))
+vixS <- grepl("yearf", rownames(S))
 vS <-  S[vixS, vixS]
 AM <- t(rep(1, sum(vix)))/sum(vix)
+
+out <- list(year_effect = coefs %>% as_tibble(rownames="coef") %>% filter(grepl("yearf", coef)))
+out$year_effect %>% mutate(coef = gsub("wolf_yearf",  "", coef), estimate = Estimate, sd = `Std. Error` ) %>%
+  ggplot(aes(coef, estimate))+ 
+  geom_pointrange(aes(ymin = estimate - 2*sd, 
+                      ymax = estimate+2*sd)) + 
+  theme(axis.text.x = element_text(angle=30, hjust=1))
+
+```
+
+Compute the average year effect:
+
+```{r}
 mean_year_effect <- c(estimate =  AM%*%coefs[vix,1], sd = sqrt( AM%*%vS%*%t(AM) ) )  
 print(mean_year_effect)
 
-out <- list(mean_year_effect = mean_year_effect)
+out$mean_year_effect <- mean_year_effect
 ```
 
 Then monthly effects follow. Note month=1 was the baseline = 0. 
 
 ```{r}
-kix <- grepl("kkf", cnames)
+kix <- grepl("monthf", cnames)
 out$month_effects <- coefs[kix,1:2] %>%  as_tibble() %>% setNames(c("estimate", "sd")) %>%
-  mutate(kk = sprintf("%02i", 2:12))
+  mutate(wolf_month = sprintf("%02i", 2:12))
 print(out$month_effects)
 
 out$month_effects %>%  
-  ggplot(aes(kk, estimate))+ 
+  ggplot(aes(wolf_month, estimate))+ 
   geom_pointrange(aes(ymin = estimate - 2*sd, 
                       ymax = estimate+2*sd))
 
@@ -229,8 +260,10 @@ The predictions include offset = -log[ median($A_{(i)}$) ] i.e. resulting values
 them <- !is.na(corine8s$Tiet[])
 c18df <- data.frame(c18=as.data.frame(corine8s), 
                     as.data.frame(droad1),
-                    vuosif = "2011", kkf = "1", special_may = FALSE, # need for predict-method
-                    area_km2 = median(model_dat$area_km2),
+                    wolf_yearf = "2010-2011", 
+                    wolf_monthf = "1", 
+                    special_may = FALSE, # need for predict-method
+                    area_m2 = median(model_dat$area_m2),
                     areasum = median(model_dat$areasum)
                     ) %>% 
   bind_cols( coordinates(corine8s) %>% data.frame() )
@@ -259,29 +292,33 @@ pred_corine <- predict.bam(fitbest, c18df, terms = cona,
                       se.fit = TRUE, 
                       cluster = cl) 
 
-pred_s <- predict.bam(fitbest, c18df, terms = "ti(x,y)", 
+pred_s <- predict.bam(fitbest, c18df, 
+                      terms = "te(x,y)",
+                      #terms = c("ti(x)", "ti(y)", "ti(x,y)"), 
                       type = "terms", 
                       se.fit = TRUE, 
                       cluster = cl) 
 
 lammap_smooth <- data.frame(
-  log_lam = c(pred_s$fit),
-  log_lam.se = c(pred_s$se.fit), term = "ti(x,y)") %>%
+  log_lam = rowSums(pred_s$fit),
+  log_lam.se = sqrt( rowSums(pred_s$se.fit^2)), 
+  term = "smooth(x,y)") %>%
   bind_cols(c18df %>% dplyr::select(x, y) ) 
 
 lammap_corine <- data.frame(
   log_lam = rowSums(pred_corine$fit),
   log_lam.se = sqrt( rowSums(pred_corine$se.fit^2) ), 
-  term = "corine[all 7]") %>%
+  term = "corine&digiroad") %>%
   bind_cols(c18df %>% dplyr::select(x, y) ) 
 
 lammaps <- rbind(lammap_smooth, lammap_corine)
 
 # and together
 lammap <- data.frame(
-  log_lam = rowSums(pred_corine$fit) + c(pred_s$fit),
-  log_lam.se = sqrt( rowSums(pred_corine$se.fit^2) + c(pred_s$se.fit)^2 ), 
-  term = "ti(x,y) + corine[all 7]") %>%
+  log_lam = rowSums(pred_corine$fit) + rowSums(pred_s$fit),
+  log_lam.se = sqrt( rowSums(pred_corine$se.fit^2 ) + 
+                     rowSums(pred_s$se.fit^2 ) ), 
+  term = "smooth(x,y) + corine&digiroad") %>%
   bind_cols(c18df %>% dplyr::select(x, y) ) 
 
 
@@ -296,13 +333,13 @@ mapit <- function(d) d %>%
   geom_raster(aes(fill = value)) +
   coord_fixed() + 
   scale_fill_distiller(palette = "Spectral") + 
-  facet_wrap(~term+name)
+  facet_wrap(~term + name)
 
-lammaps %>% filter(term == "ti(x,y)") %>% mapit()
+lammaps %>% filter(term == "smooth(x,y)") %>% mapit()
 ```
 
 ```{r}
-lammaps %>% filter(term != "ti(x,y)") %>% mapit()
+lammaps %>% filter(term != "smooth(x,y)") %>% mapit()
 ```
 
 
@@ -316,10 +353,10 @@ save in a  list-of-objects
 ```{r}
 out$spatial <- lammaps
 out$model_summary <- sum1
-saveRDS(out, "processed/poisson_regression_log_lambda_terms-v2.61.rds")
+saveRDS(out, "processed/poisson_regression_log_lambda_terms-v2.8.rds")
 
 # store now also the model object
-saveRDS(pit1, "processed/poisson_regression_bamfit-v2.61.rds")
+saveRDS(pit1, "processed/poisson_regression_bamfit-v2.8.rds")
 
 ```
 
