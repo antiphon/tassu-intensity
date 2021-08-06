@@ -78,6 +78,7 @@ tassu_dat1 <- tassu1 %>% transmute( vuosi = as.integer(format(timestamp, format=
 
 
 # Tassu data ready for aggregation.
+saveRDS(tassu_dat1, "processed/tassu_dat1-v1.rds")
 #
 ######################################################################
 # Then prepare conditioning set: Territories, GPS and expert knowledge
@@ -179,7 +180,6 @@ corine8s_logratio <- calc(corine8s, function(v) log(v/v[i0]) )  %>%
 #
 droad0 <- crop(stack("../data/digiroad_luokka12_1x1km_2021-04-14.grd"), 
                as_Spatial(finland1))
-projection(droad0) <- crs1_c
 droad1 <- setNames(droad0, "droad.cl12")
 # make sure droad aligned with corine... should be.
 
