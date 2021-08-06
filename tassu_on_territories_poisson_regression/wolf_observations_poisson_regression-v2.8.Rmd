@@ -63,7 +63,6 @@ finland <- st_transform(finland, crs1)
 box1 <- st_bbox(c(xmin=0, xmax=100000000, ymin=0, ymax = max(72e5 + 30000)), crs=st_crs(finland))
 finland1 <- st_crop(finland, box1)
 
-
 # 
 agg_out_file <- "processed/celdat-v2.6.rds"
 
@@ -76,13 +75,10 @@ terr <- readRDS("processed/territories-v1.rds")
 corine8s <- readRDS("processed/corine8s-v1.rds")
 droad0 <- crop(stack("../data/digiroad_luokka12_1x1km_2021-04-14.grd"), 
                as_Spatial(finland1))
-projection(droad0) <- crs1_c
 droad1 <- setNames(droad0, "droad.cl12")
-
 ```
 
 Dataframes prepared in `1-aggregate-model-data-frame-v1.R`.
-
 
 
 ## Some plots
