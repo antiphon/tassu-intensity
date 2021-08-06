@@ -145,7 +145,7 @@ saveRDS(tassu_dat2, "processed/tassu_dat2-v1.rds")
 corine8 <-  crop(stack("../data/corine/clc2018_fi_reclassed1_1km.grd"), 
                  as_Spatial(finland1))
                  
-projection(corine8) <- crs1_c
+#projection(corine8) <- crs1_c
 
 mask1 <- mask(corine8, as_Spatial(finland1))
 #
