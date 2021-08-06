@@ -1,5 +1,5 @@
 ---
-title: "Wolf observations, rough intensity vol. 2.8 (overdispersion, m2 area, wolf year)"
+title: "Misc stats for the data"
 author: "Tuomas Rajala"
 date : "`r Sys.Date()`"
 output:
