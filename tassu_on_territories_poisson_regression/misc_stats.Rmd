@@ -1,0 +1,142 @@
+---
+title: "Wolf observations, rough intensity vol. 2.8 (overdispersion, m2 area, wolf year)"
+author: "Tuomas Rajala"
+date : "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    code_folding: hide
+    fig_caption: true
+    number_sections: true
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(sf)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(raster)
+library(mgcv)
+library(parallel)
+theme_set(theme_bw())
+knitr::opts_chunk$set(fig.width=9, fig.height=3, echo=TRUE, message=FALSE, warning=FALSE)
+```
+
+
+```{r}
+####################################################
+# Region of interest:
+#
+crs1 <- 3067 # use this for all
+crs1_c <- paste0("EPSG:", crs1)
+finland <- readRDS("../data/finland.rds")
+finland <- st_transform(finland, crs1)
+# Drop North from geometries. Hard cut, no other preference given.
+box1 <- st_bbox(c(xmin=0, xmax=100000000, ymin=0, ymax = max(72e5 + 30000)), crs=st_crs(finland))
+finland1 <- st_crop(finland, box1)
+
+# 
+agg_out_file <- "processed/celdat-v2.6.rds"
+
+celdat1 <- readRDS(agg_out_file)
+# for plots
+dat2 <- readRDS("processed/tassu_dat2-v1.rds")
+terr <- readRDS("processed/territories-v1.rds")
+
+# for prediction
+corine8s <- readRDS("processed/corine8s-v1.rds")
+droad0 <- crop(stack("../data/digiroad_luokka12_1x1km_2021-04-14.grd"), 
+               as_Spatial(finland1))
+droad1 <- setNames(droad0, "droad.cl12")
+```
+
+
+# Territories
+
+Size and shape statistics of the spatial components. Analyse the convex hull of each territory (some expert territories include non-convex details from rivers and lakes)
+
+```{r}
+# assumption: convex sets
+# diameters = maximum interpoint distance
+# make chull just in case
+st_diam <- function(x) {
+  xy <- st_coordinates(x)[,1:2]
+  xy <- xy[chull(xy),]
+  d <- dist(xy)
+  max(d)
+}
+# "Roundness" = area_of_circle_with_same_radius / area_of_polygon where radius is solved from perimenter of polygon
+st_circA <- function(x) {
+  xy <- st_coordinates(x)[,1:2]
+  # chull again
+  xy <- xy[chull(xy), ]
+  # add first to last
+  xy <- rbind(xy, xy[1,])
+  # perimeter -> radius
+  n <- nrow(xy)  
+  peri <- sum( sqrt( rowSums((xy[-1,] - xy[-n,])^2) )  )
+  r_circle <- peri / (2*pi)
+  #c0 <- colMeans(xy)
+  r_circle^2*pi
+}
+
+terr2 <- terr %>% mutate(diameter_m = sapply(geometry, st_diam),
+                         roundness  = sapply(geometry, st_circA)/area_m2,
+# center polygons
+  geometry = geometry - st_centroid(geometry))
+
+terr2l <- terr2 %>% st_drop_geometry() %>% pivot_longer( names_to = "stat", cols = all_of(c("area_m2", "diameter_m", "roundness" )))
+
+
+```
+
+
+```{r}
+terr2l %>% ggplot() + 
+  geom_histogram(aes(value, fill = type)) +
+  facet_wrap(~stat, scale = "free")
+```
+
+5% quantile steps in roundness, denote by $Z=\pi R^2/|poly|$ where $R=diam(poly)/2$. Higher number means less round.
+
+```{r, fig.height=8, fig.width=10}
+#k <- 10
+#ix <- order(terr2$roundness)[c(1:k, -(k-1):0 + nrow(terr2))]
+preq <- order(terr2$roundness)[ round( seq(1, nrow(terr2), l = 20) ) ] 
+
+
+terr2 %>% 
+  mutate(series = factor(series, levels = series[order(roundness)]) ) %>% 
+  filter( (1:n()) %in% preq ) %>%
+  ggplot() + geom_sf(aes(col = type)) +
+  facet_wrap(~series, ncol = 5) +
+  geom_text(y=15000, x = -20000, aes(label = sprintf("Z=%4.2f", roundness) )) +
+  theme(axis.text.x = element_text(angle = 30, hjust=1))
+```
+
+
+## Within 2011-2019
+
+Overall coverages: 
+
+```{r}
+# inside 2011-2019
+terri <- terr %>% 
+  filter(start.tyear < 2020 & end.tyear >= 2011) %>%
+  mutate(start.tyear = pmax(start.tyear, 2011),
+         end.tyear  = pmin( end.tyear, 2020),
+         duration.tyear = end.tyear - start.tyear)
+
+# Overall
+terr_stats <- terri %>% 
+  group_by(type) %>% 
+  summarise(total_time = sum(duration.tyear),
+            n = n(),
+            total_area = sum(st_area(geometry)) %>% units::set_units("km^2") ) %>%
+  st_drop_geometry() 
+terr_stats
+```
+
+
