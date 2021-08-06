@@ -120,6 +120,12 @@ celdat1 %>% ggplot() + geom_bar(aes(kkf)) + facet_wrap(~vuosi, scale="free_y") +
   ggtitle("Number of active cells")
 ```
 
+```{r}
+print(c(cells_total = nrow(celdat1), cells_with_wolves = sum(celdat1$nsusi > 0)))
+```
+
+
+
 Note changing scale.
 
 Number of wolf reports in those cells:

@@ -7,6 +7,9 @@ fin <- dir("processed", "pannat", full.names = TRUE) %>% last()
 panta0 <- readRDS(fin)
 
 bywolf0 <- split(panta0, panta0$name)
+
+print("start with %i serieses\n")
+
 #
 # Split long series to pieces with min th months in between
 panta_splitter <- function(p, th_m, atleast=0, maxjump = 1000*100){

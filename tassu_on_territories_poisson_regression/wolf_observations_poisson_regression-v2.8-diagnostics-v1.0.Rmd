@@ -54,6 +54,7 @@ droad1 <- setNames(droad0, "droad.cl12")
 
 
 
+
 Malli: 
 
 ```{r}
