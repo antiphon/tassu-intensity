@@ -1,5 +1,5 @@
 ---
-title: "Wolf observations, rough intensity vol. 2.8: Diagnostics v1.0"
+title: "Wolf observations, rough intensity vol. 2.8: Diagnostics v2.0"
 author: "Tuomas Rajala"
 date : "`r Sys.Date()`"
 output:
@@ -24,6 +24,8 @@ library(sf)
 theme_set(theme_bw())
 knitr::opts_chunk$set(fig.width=9, fig.height=3, echo=TRUE, message=FALSE, warning=FALSE)
 ```
+
+- v2.0: standardized cell counts-diagnostics ($\chi^2$ testing)
 
 Tarkastellaan mallin tuottamia lukumääräennusteita.
 
@@ -190,30 +192,30 @@ knitr::kable(out$month_effects %>% filter(scale == "nat"), digits = 2)
 
 
 
-## Aggregated predictions
-Aggregoidaan havaintolukumäärät kuukauden paloihin, ja sitten verrataan ennusteisiin.
+## Standardized cell counts and predictions (i.e. Pearson residuals under Poisson model)
+
+Aggregoidaan havaintolukumäärät kuukauden paloihin, ja sitten verrataan ennusteisiin. Skaalataan, eli saadaan lukuja
+
+$$r_l = \frac{y_l - \eta_l}{\sigma_l}$$
+where 
+
+- $y_l = \sum_{k\in G_l}y_k$ 
+- $\eta_l = \sum_{k\in G_l}\hat y_k$ 
+- $\sigma_l = \sqrt{\hat\phi\eta_l}$
+
+## Alkuperäinen gridi, ei aggregoitu, kaikki data
 
 ```{r}
-mdf <- mdf %>% mutate(time = mean.tdate)
-```
+# Ensin alkuperäisessä gridissa
+mdf <- mdf %>% mutate(time = mean.tdate,
+                      yearmonth = sprintf("%i-%02i", vuosi, kk))
 
-Cell data centers in time
-
-```{r}
-mdf %>% ggplot() + 
-  geom_histogram(aes(time), bins=100) +
-    scale_x_datetime(date_breaks = "1 year")
-
-```
-
-## Koko ajanjakso
-
-```{r}
 
 # Ennuste v havainnot
 pred_o <- predict(fit, se = TRUE)
 
 mom_o <-do.call(cbind, pred_o)
+mom_o[,2] <- mom_o[,2] * sqrt(phihat)
 lohi <- cbind(exp(-2*mom_o[,2]), 1, exp(2*mom_o[,2])) * exp(mom_o[,1]+0.5*mom_o[,2]^2) 
 
 # should be the same as
@@ -228,18 +230,57 @@ mdf <- mutate(mdf,
               pred    = lohi[,2],
               pred_lo = lohi[,1],
               pred_hi = lohi[,3],
+              pearson = (nsusi - pred)/(phihat * sqrt(pred)),
               year = vuosi,
               month = kk)
 
+
+```
+
+Cell data centers in time
+
+```{r}
+mdf %>% ggplot() + 
+  geom_histogram(aes(time), bins=100) +
+    scale_x_datetime(date_breaks = "1 year")
+
+```
+
+```{r}
+mdf %>% pivot_longer(c(nsusi, pred)) %>%
+  ggplot() +
+  geom_histogram(aes(round(value), fill = name),
+                 position = position_dodge(),
+                bins = 100)
+```
+
+this is mad...
+
+
+## Koko ajanjakso
+
+```{r}
+
 # Ennuste
-temp_df <- mdf %>% group_by(year, month, time) %>%
+temp_df <- mdf %>% group_by(year, month, time, yearmonth) %>%
   summarise(nobs = sum(nsusi),
             pred = sum(pred),
+            sigma = sqrt( sum(pred) ) * phihat,
+            pearson = (nobs - pred)/sigma,
             pred_hi = sum(pred_hi),
             pred_lo = sum(pred_lo))
 
 ```
 
+Ennuste v havainnot, rounded predictions:
+
+```{r}
+temp_df %>% pivot_longer(pred:nobs) %>%
+  ggplot() + 
+  geom_histogram(aes(round(value) , 
+                     fill = name), position = position_dodge(), 
+                 bins = 50)
+```
 
 
 ```{r}
@@ -258,36 +299,25 @@ pred_tdf1 %>% pivot_longer(pred:nobs) %>%
 - 2017->: 
   - yliennuste kohtalainen 2017&2019, 2018 paremmin kohdalla
 
-difference
+Pearson residuaalit:
 
 ```{r}
 pred_tdf1 %>% 
   ggplot(aes(time)) +
   geom_hline(yintercept = 0) + 
-  geom_ribbon(aes(ymin = pred_hi - nobs, ymax = pred_lo - nobs), alpha = .2) +
-  geom_line(aes(y = pred - nobs), col = 2, lwd=1)  +
-  scale_x_datetime(date_breaks = "1 year")
+  geom_line(aes(y = pearson), col = 2, lwd=1)  +
+  scale_x_datetime(date_breaks = "1 year") + 
+  geom_hline(yintercept = c(-2,2)) + 
+  ylim(c(-3,3))
 ```
 
+- Vain muutama hetki menee ulos
 
-
-relative
-
-```{r}
-pred_tdf1 %>% 
-  ggplot(aes(time)) +
-  geom_hline(yintercept = 0) + 
-  geom_line(aes(y = (pred - nobs) / pred), col = 2, lwd=1)  +
-  scale_x_datetime(date_breaks = "1 year")
-```
-
-- arvo 1 olisi 100% väärässä: Heiluu aika lailla ulos rangelta
-
-By years
+Vuosittain:
 
 ```{r, fig.height=5, fig.width=10}
 pred_tdf1 %>% #pivot_longer(pred:obs) %>%
-  ggplot(aes(month, y = (pred-nobs)/pred)) +
+  ggplot(aes(month, y = pearson)) +
   geom_point() +
   geom_hline(yintercept = 0) +
   theme(legend.position = "bottom")+ 
@@ -297,7 +327,7 @@ pred_tdf1 %>% #pivot_longer(pred:obs) %>%
 By months
 ```{r, fig.height=5, fig.width=10}
 pred_tdf1 %>% #pivot_longer(pred:obs) %>%
-  ggplot(aes(month, y = (pred-nobs)/pred)) +
+  ggplot(aes(month, y = pearson)) +
   geom_text(aes(label = year, col = factor(year)), size = 3) +
   geom_hline(yintercept = 0) + 
   guides(col = "none") + 
@@ -305,40 +335,74 @@ pred_tdf1 %>% #pivot_longer(pred:obs) %>%
 ```
 
 
-## Prior to 2016
 
+
+## Prior to 2016
 
 ```{r}
 pred_tdf1 <- temp_df %>% filter( time < "2016-03-05")
 pred_tdf1 %>% pivot_longer(pred:nobs) %>%
   ggplot(aes(time, y = value, col = name)) +
-  geom_line(aes(linetype = name), size=1.5)  + geom_point() +
+  geom_line(aes(linetype = name), size=1.5)  + 
+  geom_point() +
+  geom_ribbon(data = pred_tdf1, 
+              aes(time, y=NULL, col = NULL, 
+                  ymin = pred_lo, ymax = pred_hi), alpha = .1)+ 
   theme(legend.position = "bottom")+ 
   scale_x_datetime(date_breaks = "1 year")
 ```
 
 difference
 
-
-
 ```{r}
 pred_tdf1 %>% 
   ggplot(aes(time)) +
   geom_hline(yintercept = 0) + 
   geom_line(aes(y = pred - nobs), col = 2, lwd=1)  +
+  geom_ribbon(data = pred_tdf1, 
+              aes(time, y=NULL, col = NULL, 
+                  ymin = pred_lo - pred, ymax = pred_hi-pred), alpha = .1)+ 
   scale_x_datetime(date_breaks = "1 year")
 ```
 
 
-relative
+Pearson 
 
 ```{r}
 pred_tdf1 %>% 
   ggplot(aes(time)) +
   geom_hline(yintercept = 0) + 
-  geom_line(aes(y = (pred - nobs) / pred), col = 2, lwd=1)  +
-  scale_x_datetime(date_breaks = "1 year")
+  geom_line(aes(y = pearson), col = 2, lwd=1)  +
+  scale_x_datetime(date_breaks = "1 year") + 
+  geom_hline(yintercept = c(-2,2)) + 
+  ylim(c(-3,3))
 ```
+
+nothing to report here. The odd ones are during period 2017-2019. 
+
+### Odd ones
+
+For reference, the stats for all monthly counts:
+
+```{r}
+rbind(obse= summary(temp_df$nobs),
+      pred= summary(temp_df$pred)) %>%
+  knitr::kable(digits=1)
+                    
+```
+
+- we see that the observations are more heavy on the 0s
+
+Check big residual times.
+
+```{r}
+oddtimes <- temp_df %>% filter(abs(pearson) > 2)
+#oddones  <- mdf %>% filter( yearmonth %in% oddtimes$yearmonth)
+
+knitr::kable(oddtimes, digits = 1)
+```
+
+- four instances
 
 # Avaruus
 
@@ -357,15 +421,17 @@ Josta ennuste tiheydelle
 $$\hat\lambda(i) = \exp[\hat\eta(i)]/|A_i|$$
 
 
-Tehdään vielä aggregointi karkeampiin yksiköihin.
+Tehdään vielä aggregointi karkeampiin yksiköihin. 
 
 ```{r, cache=TRUE}
-make_spat_df <- function(mdf1) {
+# Aggregointifunktio
+make_spat_df <- function(mdf1, 
+                         project_fun = sum) {
 
   cell_sum <- mdf1 %>% 
     group_by(raster_idx) %>% 
-    summarise(nsusi = sum(nsusi), 
-              npred = sum(pred))
+    summarise(nsusi = project_fun(nsusi), 
+              npred = project_fun(pred))
   
   robs0 <- rpred0 <- raster(c20s)
   pixel_area <- prod( res(robs0) )
@@ -377,57 +443,70 @@ make_spat_df <- function(mdf1) {
   robs  <- aggregate(robs0,  fun = sum,  fact = 10)
   rpred <- aggregate(rpred0, fun = sum,  fact = 10)
   diff <- robs - rpred
+  rpearson <- diff/sqrt(phihat * rpred)
  #cat( sprintf("square dimensions =%7.0fx%7.0fm\n", res(robs)[1], res(robs)[2]) )
 
-#
-  spat_df <- stack(list(obs=robs, pred=rpred)) %>% 
+# make a long df of the rasters.
+  spat_df <- stack(list(obs=robs, pred=rpred, pearson = rpearson)) %>% 
     as.data.frame(xy=TRUE) %>%
     mutate(diff = obs - pred) %>%
-    pivot_longer(cols = c(obs, pred, diff), names_to = "layer") %>%
+    pivot_longer(cols = c(obs, pred, diff, pearson), names_to = "layer") %>%
     filter(!is.na(value))
-  list(robs = robs, rpred = rpred, spat_df = spat_df)
+  #
+  list(robs = robs, rpred = rpred, pearson = rpearson, spat_df = spat_df)
 }
+
+
 
 ## Full data:
 L <- make_spat_df(mdf)
 spat_df <- L$spat_df
 robs <- L$robs
 rpred <- L$rpred
+rpearson <- L$pearson
 
 spat_df %>% group_by(layer) %>% summarise(m = mean(value))
 
+# by block
+La <- make_spat_df(mdf %>% filter(vuosi < 2017))
+Lb <- make_spat_df(mdf %>% filter(vuosi >= 2017))
+
+spat_dfab <- bind_rows(La$spat_df %>% mutate(block = "before2017"),
+                       Lb$spat_df %>% mutate(block = "from2017"))
 ```
 
+
+Histograms of counts, rounded predictions: overall
+
 ```{r}
-spat_df %>% filter(layer != "diff") %>%
+spat_df %>% filter(layer %in% c("obs", "pred")) %>%
   ggplot() +
-  geom_histogram(aes(value, 
+  geom_histogram(aes( round(value) , 
                      fill = layer), position = position_dodge(), 
                  bins = 50)
 ```
 
-- 0 count is overpresented
+and by pre-post 2017:
+
+```{r}
+spat_dfab %>% filter(layer %in% c("obs", "pred")) %>%
+  ggplot() +
+  geom_histogram(aes(round(value) , 
+                     fill = layer), position = position_dodge(), 
+                 bins = 50) +
+  facet_wrap(~block, scale="free_y")
+```
+
+- 0 count is a bit overpresented
 
 
 ```{r, eval=TRUE, fig.height = 7, fig.width=9}
-spat_df %>% filter(layer != "diff") %>%
+spat_df %>% filter( layer %in% c("obs", "pred")) %>%
   ggplot() +
   geom_raster(aes(x, y, fill = log(value+1) )) +
   scale_fill_distiller(palette = "Spectral") + 
   coord_fixed() +
   facet_wrap(~layer)
-```
-
-Difference
-
-
-
-```{r}
-spat_df %>% filter(layer == "diff") %>%
-  ggplot() +
-  geom_histogram(aes(value, 
-                     fill = layer), position = position_dodge(), 
-                 bins = 50)
 ```
 
 
@@ -440,7 +519,50 @@ pd <- spat_df %>% filter(layer == "diff") %>%
 pd
 ```
 
-Some pixels are way off. Study.
+
+```{r, fig.height=5}
+pdab <- spat_dfab %>% filter(layer == "diff") %>%
+  ggplot() +
+  geom_raster(aes(x, y, fill = value )) +
+  scale_fill_distiller(palette = "Spectral") + #, limits = c(-1,1)*20) + 
+  coord_fixed() + ggtitle("obs - pred")  + 
+  facet_wrap(~block)
+pdab
+```
+
+
+
+
+```{r, fig.height=5}
+pp <- spat_df %>% filter(layer == "pearson") %>%
+  ggplot() +
+  geom_raster(aes(x, y, fill = abs(value) )) +
+  scale_fill_distiller(palette = "Oranges", direction = 1) + 
+  coord_fixed() + ggtitle("Pearson residuals") 
+pp
+```
+
+
+
+```{r, fig.height=5}
+ppab <- spat_dfab %>% filter(layer == "pearson") %>%
+  ggplot() +
+  geom_raster(aes(x, y, fill = abs(value) )) +
+  scale_fill_distiller(palette = "Oranges", direction = 1) + 
+  coord_fixed() + ggtitle("Pearson residuals")  +
+  facet_wrap(~block)
+ppab
+```
+
+
+Some pixels are way off.
+
+```{r}
+stat <- split(spat_df$value, spat_df$layer) %>% lapply(summary) %>% bind_rows(.id = "layer")
+knitr::kable(stat, digits=2, caption = "Pearson residual")
+```
+
+
 
 ## Extreme mismatches
 
@@ -451,7 +573,7 @@ tassu <- readRDS("processed/tassu_dat2-v1.rds")
 
 
 ```{r}
-i <- which.max(robs - rpred)
+i <- which.max(rpearson)
 
 k <- cellFromXY(c20s, xyFromCell(robs, i))
 rc <- rowColFromCell(c20s, k)
@@ -459,28 +581,31 @@ delta <- 5
 kv <- cellFromRowColCombine(c20s, rc[1] + (-delta:delta),
                           rc[2] + (-delta:delta))
 
-#diffi <- (robs0 - rpred0)[kv]
-
 mdf_focus <- mdf %>% filter(raster_idx %in% kv)
 mdf_focus_s <- mdf_focus %>% group_by(raster_idx) %>%
   summarise(nobs = sum(nsusi),
-            pred = sum(pred), x = x[1], y=y[1])
+            pred = sum(pred), 
+            pearson = (nobs-pred)/sqrt(phihat * pred),
+            x = x[1], y=y[1])
 
 mdf_focus_t <- mdf_focus %>% group_by(time, raster_idx) %>%
   summarise(nobs = sum(nsusi),
-            pred = sum(pred), time = time,)
+            pred = sum(pred), 
+            pearson = (nobs-pred)/sqrt(phihat * pred),
+            time = time,)
 
 ```
 
 Marginal in space, one location:
 
 ```{r, fig.width=9, fig.height=8}
-p <- mdf_focus_s %>% ggplot() + 
+p <- mdf_focus_s %>% 
+  ggplot() + 
   coord_fixed() + 
   scale_fill_distiller(palette = "Spectral") + 
-  geom_tile(aes(x, y, fill = nobs-pred))
+  geom_tile(aes(x, y, fill = pearson))
 
-p2 <- pd + geom_sf(data = mdf_focus_s %>% st_as_sf(coords=c("x","y"), crs=3067) %>% 
+p2 <- pp + geom_sf(data = mdf_focus_s %>% st_as_sf(coords=c("x","y"), crs=3067) %>% 
             st_bbox() %>% st_as_sfc(), fill=NA)
 
 p2 + inset_element(p, left = 0.2, bottom = 0.5, right=1, top = 1)
@@ -491,43 +616,41 @@ And time:
 
 ```{r}
 mdf_focus %>% ggplot() + 
-    geom_jitter(aes(time, nsusi - pred, #group = raster_idx, 
+    geom_jitter(aes(time, pearson,
                   shape = special_may))
 ```
 
-Seems the specialist territory data is the troublemaker.
 
-
-Tassu points:
 
 ```{r}
-cell_sum <- mdf %>% 
-    group_by(raster_idx) %>% 
-    summarise(nsusi = sum(nsusi), 
-              npred = sum(pred)) %>%
-  mutate(nsusi = replace(nsusi, nsusi == 0, NA))
-# 0 -> NA
-  
-mdf_focus_r <- mdf_focus_r_p <- raster(c20)
-mdf_focus_r[mdf_focus_s$raster_idx] <- mdf_focus_s$nobs
-mdf_focus_r <- crop( mdf_focus_r , extent(mdf_focus_s) + c(-1,1,-1,1)*500 )  
-mdf_focus_r_p <- setValues(mdf_focus_r, mdf_focus_s$pred)
-#mdf_focus_r  [cell_sum$raster_idx] <- cell_sum$nsusi
-#mdf_focus_r_p[cell_sum$raster_idx] <- cell_sum$npred
-mdf_focus_r_d <- mdf_focus_r - mdf_focus_r_p
-
-
-# only in focus area
-txy <- tassu %>% 
-  mutate(cell = cellFromXY(c20, cbind(x, y))) %>%
-  filter(cell %in% unique(mdf$raster_idx)) %>%
-  st_as_sf(coords = c("x", "y"), crs = crs(fin))
-
-bbox <- st_bbox(mdf_focus_r) %>% st_as_sfc() %>% st_transform(crs = crs(fin))
-tassu_in_focus <- txy %>% 
-  mutate(in_focus = 
-           st_intersects(txy$geometry, bbox, sparse=FALSE)[,1] ) %>%
-  filter(in_focus)
+# Tassu points:
+# cell_sum <- mdf %>% 
+#     group_by(raster_idx) %>% 
+#     summarise(nsusi = sum(nsusi), 
+#               npred = sum(pred)) %>%
+#   mutate(nsusi = replace(nsusi, nsusi == 0, NA))
+# # 0 -> NA
+#   
+# mdf_focus_r <- mdf_focus_r_p <- raster(c20)
+# mdf_focus_r[mdf_focus_s$raster_idx] <- mdf_focus_s$nobs
+# mdf_focus_r <- crop( mdf_focus_r , extent(mdf_focus_s) + c(-1,1,-1,1)*500 )  
+# mdf_focus_r_p <- setValues(mdf_focus_r, mdf_focus_s$pred)
+# #mdf_focus_r  [cell_sum$raster_idx] <- cell_sum$nsusi
+# #mdf_focus_r_p[cell_sum$raster_idx] <- cell_sum$npred
+# mdf_focus_r_d <- mdf_focus_r - mdf_focus_r_p
+# 
+# 
+# # only in focus area
+# txy <- tassu %>% 
+#   mutate(cell = cellFromXY(c20, cbind(x, y))) %>%
+#   filter(cell %in% unique(mdf$raster_idx)) %>%
+#   st_as_sf(coords = c("x", "y"), crs = crs(fin))
+# 
+# bbox <- st_bbox(mdf_focus_r) %>% st_as_sfc() %>% st_transform(crs = crs(fin))
+# tassu_in_focus <- txy %>% 
+#   mutate(in_focus = 
+#            st_intersects(txy$geometry, bbox, sparse=FALSE)[,1] ) %>%
+#   filter(in_focus)
 ```
 
 
@@ -573,34 +696,88 @@ lea %>%
 #                   group = "tassu", radius = 5, popup = ~aika, stroke = FALSE, fillOpacity = 1) 
 ```
 
-
-
-## Spatial training error for data < 2017
-
 ```{r}
-L2 <- make_spat_df(mdf %>% filter(vuosi < 2017))
+La <- make_spat_df(mdf %>% filter(vuosi < 2017))
+Lb <- make_spat_df(mdf %>% filter(vuosi >= 2017))
 
-spat_df2 <- L2$spat_df
-spat_df2 %>% group_by(layer) %>% summarise(m = mean(value))
+spat_dfab <- bind_rows(La$spat_df %>% mutate(block = "before2017"),
+                       Lb$spat_df %>% mutate(block = "from2017"))
+
+spat_dfab %>% group_by(layer, block) %>% summarise(m = mean(value))
 
 ```
 
+Rounded predictions v observations.
 
 ```{r}
-spat_df2 %>% filter(layer != "diff") %>%
+spat_dfab %>% filter(layer %in% c("obs", "pred")) %>%
   ggplot() +
-  geom_histogram(aes(value, 
+  geom_histogram(aes(round(value), 
                      fill = layer), position = position_dodge(), 
-                 bins = 50)
+                 bins = 50) + 
+  facet_wrap(~block)
 ```
 
 ```{r, eval=TRUE, fig.height = 7, fig.width=9}
-spat_df2 %>% filter(layer == "diff") %>%
+spat_dfab %>% filter(layer == "pearson") %>%
   ggplot() +
   geom_sf(data = fin1, fill=NA) + 
   geom_tile(aes(x, y, fill = value )) +
-  scale_fill_distiller(palette = "Spectral") + 
-  facet_wrap(~layer)
+  scale_fill_distiller(palette = "Oranges", direction = 1) + 
+  facet_wrap(~layer+block)
 ```
+
+```{r}
+
+```
+
+
+## Omit largest observation?
+
+Lets aggregate so that we omit the largest Tassu month when summing over time, before aggregating space pixels in the 10x10 neighbourhood.
+
+```{r}
+## Full data:
+L2 <- make_spat_df(mdf, 
+                   project_fun = function(x) sum( x[order(abs(x), decreasing=TRUE)[-1]] ))
+L2a <- make_spat_df(mdf %>% filter(year < 2017), 
+                   project_fun = function(x) sum( x[order(abs(x), decreasing=TRUE)[-1]] ))
+L2b <- make_spat_df(mdf %>% filter(year >= 2017), 
+                   project_fun = function(x) sum( x[order(abs(x), decreasing=TRUE)[-1]] ))
+
+
+spat_df2 <- L2$spat_df
+spat_df2ab <- bind_rows( L2a$spat_df %>% mutate(block = "before2017"),
+                        L2b$spat_df %>% mutate(block = "from2017"))
+```
+
+```{r}
+stat2 <- split(spat_df2$value, spat_df2$layer) %>% lapply(summary) %>% bind_rows(.id = "layer")
+knitr::kable(stat2, digits=2, caption = "Pearson residual")
+```
+
+
+```{r, eval=TRUE, fig.height = 7, fig.width=9}
+pp2 <- spat_df2 %>% filter(layer == "pearson") %>%
+  ggplot() +
+  geom_raster(aes(x, y, fill = value )) +
+  scale_fill_stepsn(colors=c("blue", "gray90", "goldenrod"), 
+                    breaks = seq(-3, 3, by = 1)) + 
+  coord_fixed() + ggtitle("Pearson residuals") 
+pp2
+```
+
+```{r, eval=TRUE, fig.height = 7, fig.width=9}
+pp2ab <- spat_df2ab %>% filter(layer == "pearson") %>%
+  ggplot() +
+  geom_raster(aes(x, y, fill = value )) +
+  scale_fill_stepsn(colors=c("blue", "gray90", "goldenrod"), 
+                    breaks = seq(-3, 3, by = 1)) + 
+  coord_fixed() + ggtitle("Pearson residuals") +
+  facet_wrap(~block)
+pp2ab
+```
+
+
 
 
