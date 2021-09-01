@@ -302,16 +302,26 @@ pred_tdf1 %>% pivot_longer(pred:nobs) %>%
 Pearson residuaalit:
 
 ```{r}
-pred_tdf1 %>% 
+p_time <- pred_tdf1 %>% 
   ggplot(aes(time)) +
   geom_hline(yintercept = 0) + 
   geom_line(aes(y = pearson), col = 2, lwd=1)  +
   scale_x_datetime(date_breaks = "1 year") + 
   geom_hline(yintercept = c(-2,2)) + 
-  ylim(c(-3,3))
+#  ylim(c(-3,3)) +
+  labs(x=NULL, y=NULL) + 
+  ggtitle("Pearson residuals of monthly counts")
+
+p_time
+
 ```
 
-- Vain muutama hetki menee ulos
+Vain muutama hetki menee ulos
+```{r}
+pred_tdf1 %>% filter(pearson |> abs() > 2)
+```
+
+
 
 Vuosittain:
 
@@ -442,7 +452,7 @@ make_spat_df <- function(mdf1,
   # crudify
   robs  <- aggregate(robs0,  fun = sum,  fact = 10)
   rpred <- aggregate(rpred0, fun = sum,  fact = 10)
-  diff <- robs - rpred
+  diff <- rpred - robs
   rpearson <- diff/sqrt(phihat * rpred)
  #cat( sprintf("square dimensions =%7.0fx%7.0fm\n", res(robs)[1], res(robs)[2]) )
 
@@ -509,23 +519,43 @@ spat_df %>% filter( layer %in% c("obs", "pred")) %>%
   facet_wrap(~layer)
 ```
 
+Just counts, for paper:
 
 ```{r, fig.height=5}
-pd <- spat_df %>% filter(layer == "diff") %>%
+bins <- c(-1, 0, 1, 2, 4, 8, 16, 32, Inf)
+bins_l <- c(sprintf("%3i", bins[-c(1, length(bins))]), ">32")
+pcd <- spat_df %>% filter(layer == "obs") %>%
+  mutate(valuebin = bins_l[cut(value, bins, labels=FALSE) ]
+         ) %>%
   ggplot() +
-  geom_raster(aes(x, y, fill = value )) +
-  scale_fill_distiller(palette = "Spectral") + #, limits = c(-1,1)*20) + 
-  coord_fixed() + ggtitle("obs - pred") 
-pd
+  geom_sf(data = fin1, fill = NA, col = "gray90")  +
+  geom_raster(aes(x, y, fill = valuebin )) +
+  #scale_fill_distiller(palette = "Spectral") + #, limits = c(-1,1)*20) + 
+  #scale_fill_viridis_c(direction = -1, option = 2, breal) +
+  # scale_fill_stepsn(colors = 
+  #                     c("magenta", "grey95", "blue", "green", "red", "yellow", "black"), 
+  #                   breaks =
+  #                     c(0, 2, 4, 8, 16, 32, 64)) +
+  scale_fill_brewer(palette = 4) +
+  labs(fill = NULL) + 
+  xlab(NULL) + ylab(NULL) +
+  ggtitle("2011-2019 reports on territories, 10x10km cells") 
+pcd <- pcd + theme(legend.position = "bottom") + 
+  guides(fill = guide_legend(nrow=1, label.position = "bottom" ))
+pcd
 ```
 
 
+
+
 ```{r, fig.height=5}
+# pre and post 2017
 pdab <- spat_dfab %>% filter(layer == "diff") %>%
   ggplot() +
   geom_raster(aes(x, y, fill = value )) +
   scale_fill_distiller(palette = "Spectral") + #, limits = c(-1,1)*20) + 
-  coord_fixed() + ggtitle("obs - pred")  + 
+  coord_fixed() + 
+  ggtitle("obs - pred")  + 
   facet_wrap(~block)
 pdab
 ```
@@ -534,11 +564,17 @@ pdab
 
 
 ```{r, fig.height=5}
-pp <- spat_df %>% filter(layer == "pearson") %>%
+pp <- spat_df %>% 
+  filter(layer == "pearson") %>%
   ggplot() +
+  geom_sf(data = fin1, fill = NA, col = "gray90") + 
+  #coord_sf(datum =crs1) + 
   geom_raster(aes(x, y, fill = abs(value) )) +
-  scale_fill_distiller(palette = "Oranges", direction = 1) + 
-  coord_fixed() + ggtitle("Pearson residuals") 
+  #scale_fill_distiller(palette = "Oranges", direction = 1, breaks = c(0, 2, 4, 8, 16)) + 
+  scale_fill_stepsn(colors = c("grey95", "orange", "darkred"), breaks = c(-1, 0, 2, 4, 8, 16)) +
+  #coord_fixed() + 
+  labs(x=NULL, y = NULL, fill = NULL )  + #fill = "abs(resid)") + 
+  ggtitle("Pearson residuals, absolute value") 
 pp
 ```
 
@@ -549,7 +585,7 @@ ppab <- spat_dfab %>% filter(layer == "pearson") %>%
   ggplot() +
   geom_raster(aes(x, y, fill = abs(value) )) +
   scale_fill_distiller(palette = "Oranges", direction = 1) + 
-  coord_fixed() + ggtitle("Pearson residuals")  +
+  coord_fixed() + ggtitle("Pearson residuals (absolute value)")  +
   facet_wrap(~block)
 ppab
 ```
@@ -563,6 +599,17 @@ knitr::kable(stat, digits=2, caption = "Pearson residual")
 ```
 
 
+For paper:
+
+```{r}
+tlo <- theme(legend.position = "bottom")
+out_app <- (p_time / ((pcd) + (pp+ tlo) ))  + plot_layout(heights = 1:2)
+pdf(file = "appendix_intensity_diagnostics_v1.pdf", width=10, height=8)
+print(out_app)
+dev.off()
+```
+
+
 
 ## Extreme mismatches
 
@@ -573,7 +620,7 @@ tassu <- readRDS("processed/tassu_dat2-v1.rds")
 
 
 ```{r}
-i <- which.max(rpearson)
+i <- which.max(abs(rpearson))
 
 k <- cellFromXY(c20s, xyFromCell(robs, i))
 rc <- rowColFromCell(c20s, k)
