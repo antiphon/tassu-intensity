@@ -22,6 +22,9 @@ library(mgcv)
 library(parallel)
 theme_set(theme_bw())
 knitr::opts_chunk$set(fig.width=9, fig.height=3, echo=TRUE, message=FALSE, warning=FALSE)
+
+verz <- "v2.8"
+
 ```
 
 * v2.8: look at overdispersion; time in wolf years; homogenise spatial units; check if "main" effect `ti` terms make difference
@@ -355,10 +358,10 @@ save in a  list-of-objects
 ```{r}
 out$spatial <- lammaps
 out$model_summary <- sum1
-saveRDS(out, "processed/poisson_regression_log_lambda_terms-v2.8.rds")
+saveRDS(out, sprintf("processed/poisson_regression_log_lambda_terms-%s.rds", verz))
 
 # store now also the model object
-saveRDS(pit1, "processed/poisson_regression_bamfit-v2.8.rds")
+saveRDS(pit1, sprintf("processed/poisson_regression_bamfit-%s.rds", verz))
 
 ```
 

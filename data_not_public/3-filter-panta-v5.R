@@ -105,8 +105,7 @@ if(0){
   points(xy[!keep ,], col = 2, pch= 20)
   print(mean(keep))
 }
-###########
-# filter the series
+############ filter the series
 byseries_filtered1 <- lapply(byseries, function(p) p[filter_leaps(p), ])
 panta2 <- do.call(rbind, byseries_filtered1)
 ###

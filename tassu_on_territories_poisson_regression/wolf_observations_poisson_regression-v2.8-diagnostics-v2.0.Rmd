@@ -541,7 +541,7 @@ pcd <- spat_df %>% filter(layer == "obs") %>%
   xlab(NULL) + ylab(NULL) +
   ggtitle("2011-2019 reports on territories, 10x10km cells") 
 pcd <- pcd + theme(legend.position = "bottom") + 
-  guides(fill = guide_legend(nrow=1, label.position = "bottom" ))
+  guides(fill = guide_legend(nrow=1, label.position = "bottom"))
 pcd
 ```
 
@@ -603,7 +603,7 @@ For paper:
 
 ```{r}
 tlo <- theme(legend.position = "bottom")
-out_app <- (p_time / ((pcd) + (pp+ tlo) ))  + plot_layout(heights = 1:2)
+out_app <- (p_time / ((pcd) + (pp+ tlo) ))  + plot_layout(heights = c(1,2.5))
 pdf(file = "appendix_intensity_diagnostics_v1.pdf", width=10, height=8)
 print(out_app)
 dev.off()

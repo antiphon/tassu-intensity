@@ -38,7 +38,7 @@ posix2year <- function(x) {
 gps_file <- dir("processed/", "pannat.*filtered", full.names = TRUE) %>% last()
 panta <- readRDS(gps_file)
 
-# rought filtering, some outliers
+# rought filtering, some outliers remain??
 panta <- panta %>% filter( x  > 2e5 & y < 74e5 )
 
 # Compute convex hull for each series.
